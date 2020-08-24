@@ -29,9 +29,20 @@ architecture audiocard_arch of audiocard is
 		USB_CS : out std_logic;
 		USB_RESET_n: out std_logic;
 		LED: out std_logic_vector(7 downto 0);
+
+		REG_ADDR: in std_logic_vector(5 downto 0);
+		REG_VALUE_WRITE: in std_logic_vector(7 downto 0);
+		REG_VALUE_READ: out std_logic_vector(7 downto 0);
+		REG_RW: in std_logic; -- read - 0; write - 1;
+		REG_STRB: in std_logic; -- do operation - 1;
+		REG_DONE_STRB: out std_logic; -- operation done, result present in REG_VALUE_READ if any;
 		RESETn: in std_logic
 	);
 	end component;
+
+signal REG_ADDR: std_logic_vector(5 downto 0);
+signal REG_VALUE_READ, REG_VALUE_WRITE: std_logic_vector(7 downto 0);
+signal REG_RW, REG_STRB, REG_DONE_STRB: std_logic;
 begin
 	ULPI_0 : ULPI
 	port map (
@@ -44,7 +55,14 @@ begin
 		USB_CS => USB_CS,
 		USB_RESET_n => USB_RESET_n,
 		LED => LED,
-		RESETn => RESETn
+		RESETn => RESETn,
+
+		REG_ADDR => REG_ADDR,
+		REG_VALUE_WRITE => REG_VALUE_WRITE,
+		REG_VALUE_READ => REG_VALUE_READ,
+		REG_RW => REG_RW,
+		REG_STRB => REG_STRB,
+		REG_DONE_STRB => REG_DONE_STRB
 	);
 
 end audiocard_arch;

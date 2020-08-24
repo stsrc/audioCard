@@ -13,6 +13,14 @@ entity ULPI is
 		USB_CS : out std_logic;
 		USB_RESET_n: out std_logic;
 		LED: out std_logic_vector(7 downto 0);
+
+		REG_ADDR: in std_logic_vector(5 downto 0);
+		REG_VALUE_WRITE: in std_logic_vector(7 downto 0);
+		REG_VALUE_READ: out std_logic_vector(7 downto 0);
+		REG_RW: in std_logic; -- read - 0; write - 1;
+		REG_STRB: in std_logic; -- do operation - 1;
+		REG_DONE_STRB: out std_logic; -- operation done, result present in REG_VALUE_READ if any;
+
 		RESETn: in std_logic
 	);
 end entity ULPI;
@@ -24,6 +32,7 @@ signal USB_DATA_OUT: std_logic_vector(7 downto 0);
 signal LED_DATA_temp: std_logic_vector(7 downto 0);
 signal state: std_logic_vector(3 downto 0);
 signal state_tmp: std_logic_vector(3 downto 0);
+signal LED_REG: std_logic_vector(7 downto 0);
 begin
 	USB_CLK_NEG <= not(USB_CLK);
 	USB_CS <= '1';
@@ -54,8 +63,10 @@ begin
 		if (RESETn = '0') then
 			state <= (others => '0');
 			LED <= (others => '0');
+			LED_REG <= (others => '0');
 		else
-			LED <= not(LED_DATA_temp);
+			LED_REG <= not(LED_DATA_temp);
+			LED <= LED_REG;
 
 			case state is
 			when "0000" =>
@@ -101,22 +112,23 @@ begin
 	end if;
 	end process;
 
-	process (state, USB_DATA_IN) begin
+	process (state, USB_DATA_IN, LED_REG) begin
 		USB_DATA_OUT <= (others => '0');
 		USB_STP <= '0';
+		LED_DATA_temp <= not(LED_REG);
 
 		case state is
-			when "0000" =>
+			when "0000" => -- reg addr
 				USB_DATA_OUT <= "10010110";
-			when "0001" =>
+			when "0001" => -- reg value
 				USB_DATA_OUT <= "10100101";
-			when "0010" =>
+			when "0010" => -- reg stp
 				USB_STP <= '1';
-			when "0011" =>
+			when "0011" => -- reg addr
 				USB_DATA_OUT <= "11010110";
-			when "0100" =>
+			when "0100" => -- reg value
 				USB_DATA_OUT <= "11010110";
-			when "0101" =>
+			when "0101" => -- reg result
 				LED_DATA_temp <= USB_DATA_IN;
 			when others =>
 		end case;
