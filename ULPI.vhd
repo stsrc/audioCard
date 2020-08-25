@@ -29,10 +29,8 @@ architecture ULPI_arch of ULPI is
 signal USB_CLK_NEG: std_logic;
 signal USB_DATA_IN: std_logic_vector(7 downto 0);
 signal USB_DATA_OUT: std_logic_vector(7 downto 0);
-signal LED_DATA_temp: std_logic_vector(7 downto 0);
 signal state: std_logic_vector(3 downto 0);
 signal state_tmp: std_logic_vector(3 downto 0);
-signal LED_REG: std_logic_vector(7 downto 0);
 begin
 	USB_CLK_NEG <= not(USB_CLK);
 	USB_CS <= '1';
@@ -63,92 +61,85 @@ begin
 		if (RESETn = '0') then
 			state <= (others => '0');
 			LED <= (others => '0');
-			LED_REG <= (others => '0');
 		else
-			LED_REG <= not(LED_DATA_temp);
-			LED <= LED_REG;
-
-			case state is
-			when "0000" =>
-				if (USB_DIR = '0') then
-					if (REG_STRB = '1') then
-						if (REG_RW = '1') then
-							state <= "0001";
-						else
-							state <= "1001";
-						end if;
-					end if;
-				end if;
-			when "0001" =>
-				if (USB_DIR = '0') then
-					if (USB_NXT = '1') then
-						state <= "0010";
-					end if;
-				else
-					state <= "0000";
-				end if;
-			when "0010" =>
-				if (USB_DIR = '0') then
-					if (USB_NXT = '1') then
-						state <= "0011";
-					end if;
-				else
-					state <= "0000";
-				end if;
-			when "0011" =>
-				if (USB_DIR = '0') then
-					if (USB_NXT = '0') then
-						state <= "0000";
-					end if;
-				else
-					state <= "0000";
-				end if;
-			when "1001" =>
-				if (USB_DIR = '0') then
-					if (USB_NXT = '1') then
-						state <= "1010";
-					end if;
-				else
-					state <= "0000";
-				end if;
-			when "1010" =>
-				if (USB_DIR = '1') then
-					state <= "1011";
-				end if;
-			when "1011" =>
-				state <= "0000";
-			when others =>
-				state <= "0000";
-			end case;
+			LED <= (others => '0');
+			state <= state_tmp;
 		end if;
 	end if;
 	end process;
 
-	process (state, USB_DATA_IN, LED_REG, REG_ADDR, REG_VALUE_WRITE) begin
+	process (state, USB_DATA_IN, REG_ADDR, REG_VALUE_WRITE, USB_DIR, REG_STRB, REG_RW, USB_DIR, USB_NXT) begin
 		USB_DATA_OUT <= (others => '0');
 		USB_STP <= '0';
-		LED_DATA_temp <= not(LED_REG);
 		REG_VALUE_READ <= (others => '0');
 		REG_DONE_STRB <= '0';
+		state_tmp <= state;
 
 		case state is
 			when "0000" =>
+				if (USB_DIR = '0') then
+					if (REG_STRB = '1') then
+						if (REG_RW = '1') then
+							state_tmp <= "0001";
+						else
+							state_tmp <= "1001";
+						end if;
+					end if;
+				end if;
 			when "0001" => -- reg addr
 				USB_DATA_OUT <= "10" & REG_ADDR;
+
+				if (USB_DIR = '0') then
+					if (USB_NXT = '1') then
+						state_tmp <= "0010";
+					end if;
+				else
+					state_tmp <= "0000";
+				end if;
+
+
 			when "0010" => -- reg value
 				USB_DATA_OUT <= REG_VALUE_WRITE;
+
+				if (USB_DIR = '0') then
+					if (USB_NXT = '1') then
+						state_tmp <= "0011";
+					end if;
+				else
+					state_tmp <= "0000";
+				end if;
 			when "0011" => -- reg stp
 				USB_STP <= '1';
 				REG_DONE_STRB <= '1';
+
+				if (USB_DIR = '0') then
+					if (USB_NXT = '0') then
+						state_tmp <= "0000";
+					end if;
+				else
+					state_tmp <= "0000";
+				end if;
+
 			when "1001" => -- reg addr
 				USB_DATA_OUT <= "11" & REG_ADDR;
+				if (USB_DIR = '0') then
+					if (USB_NXT = '1') then
+						state_tmp <= "1010";
+					end if;
+				else
+					state_tmp <= "0000";
+				end if;
 			when "1010" => -- reg addr
 				USB_DATA_OUT <= "11" & REG_ADDR;
+				if (USB_DIR = '1') then
+					state_tmp <= "1011";
+				end if;
 			when "1011" => -- reg result
 				REG_VALUE_READ <= USB_DATA_IN;
-				LED_DATA_temp <= USB_DATA_IN;
 				REG_DONE_STRB <= '1';
+				state_tmp <= "0000";
 			when others =>
+				state_tmp <= "0000";
 		end case;
 	end process;
 end ULPI_arch;
