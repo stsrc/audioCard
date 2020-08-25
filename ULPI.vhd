@@ -71,8 +71,12 @@ begin
 			case state is
 			when "0000" =>
 				if (USB_DIR = '0') then
-					if (USB_NXT = '1') then
-						state <= "0001";
+					if (REG_STRB = '1') then
+						if (REG_RW = '1') then
+							state <= "0001";
+						else
+							state <= "1001";
+						end if;
 					end if;
 				end if;
 			when "0001" =>
@@ -85,7 +89,7 @@ begin
 				end if;
 			when "0010" =>
 				if (USB_DIR = '0') then
-					if (USB_NXT = '0') then
+					if (USB_NXT = '1') then
 						state <= "0011";
 					end if;
 				else
@@ -93,17 +97,25 @@ begin
 				end if;
 			when "0011" =>
 				if (USB_DIR = '0') then
-					if (USB_NXT = '1') then
-						state <= "0100";
+					if (USB_NXT = '0') then
+						state <= "0000";
 					end if;
 				else
-					state <= "0011";
+					state <= "0000";
 				end if;
-			when "0100" =>
+			when "1001" =>
+				if (USB_DIR = '0') then
+					if (USB_NXT = '1') then
+						state <= "1010";
+					end if;
+				else
+					state <= "0000";
+				end if;
+			when "1010" =>
 				if (USB_DIR = '1') then
-					state <= "0101";
+					state <= "1011";
 				end if;
-			when "0101" =>
+			when "1011" =>
 				state <= "0000";
 			when others =>
 				state <= "0000";
@@ -112,24 +124,30 @@ begin
 	end if;
 	end process;
 
-	process (state, USB_DATA_IN, LED_REG) begin
+	process (state, USB_DATA_IN, LED_REG, REG_ADDR, REG_VALUE_WRITE) begin
 		USB_DATA_OUT <= (others => '0');
 		USB_STP <= '0';
 		LED_DATA_temp <= not(LED_REG);
+		REG_VALUE_READ <= (others => '0');
+		REG_DONE_STRB <= '0';
 
 		case state is
-			when "0000" => -- reg addr
-				USB_DATA_OUT <= "10010110";
-			when "0001" => -- reg value
-				USB_DATA_OUT <= "10100101";
-			when "0010" => -- reg stp
+			when "0000" =>
+			when "0001" => -- reg addr
+				USB_DATA_OUT <= "10" & REG_ADDR;
+			when "0010" => -- reg value
+				USB_DATA_OUT <= REG_VALUE_WRITE;
+			when "0011" => -- reg stp
 				USB_STP <= '1';
-			when "0011" => -- reg addr
-				USB_DATA_OUT <= "11010110";
-			when "0100" => -- reg value
-				USB_DATA_OUT <= "11010110";
-			when "0101" => -- reg result
+				REG_DONE_STRB <= '1';
+			when "1001" => -- reg addr
+				USB_DATA_OUT <= "11" & REG_ADDR;
+			when "1010" => -- reg addr
+				USB_DATA_OUT <= "11" & REG_ADDR;
+			when "1011" => -- reg result
+				REG_VALUE_READ <= USB_DATA_IN;
 				LED_DATA_temp <= USB_DATA_IN;
+				REG_DONE_STRB <= '1';
 			when others =>
 		end case;
 	end process;

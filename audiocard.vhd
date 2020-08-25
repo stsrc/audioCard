@@ -41,9 +41,12 @@ architecture audiocard_arch of audiocard is
 	end component;
 
 signal REG_ADDR: std_logic_vector(5 downto 0);
-signal REG_VALUE_READ, REG_VALUE_WRITE: std_logic_vector(7 downto 0);
-signal REG_RW, REG_STRB, REG_DONE_STRB: std_logic;
+signal REG_VALUE_READ, REG_VALUE_WRITE, LED_REG: std_logic_vector(7 downto 0);
+signal REG_RW, REG_STRB, REG_DONE_STRB, USB_CLK_NEG: std_logic;
+signal state: std_logic;
 begin
+	USB_CLK_NEG <= not(USB_CLK);
+
 	ULPI_0 : ULPI
 	port map (
 		MAX10_CLK_50M => MAX10_CLK_50M,
@@ -54,7 +57,7 @@ begin
 		USB_STP => USB_STP,
 		USB_CS => USB_CS,
 		USB_RESET_n => USB_RESET_n,
-		LED => LED,
+		LED => open,
 		RESETn => RESETn,
 
 		REG_ADDR => REG_ADDR,
@@ -64,5 +67,34 @@ begin
 		REG_STRB => REG_STRB,
 		REG_DONE_STRB => REG_DONE_STRB
 	);
+
+	process(USB_CLK_NEG, RESETn) begin
+	if (RESETn = '0') then
+		LED_REG <= (others => '0');
+		state <= '0';
+	elsif (rising_edge(USB_CLK_NEG)) then
+		if (state = '0') then
+			REG_ADDR <= "010110";
+			REG_RW <= '1';
+			REG_STRB <= '1';
+			REG_VALUE_WRITE <= "01011010";
+			if (REG_DONE_STRB = '1') then
+				state <= '1';
+				REG_STRB <= '0';
+			end if;
+		else
+			REG_ADDR <= "010110";
+			REG_RW <= '0';
+			REG_STRB <= '1';
+			if (REG_DONE_STRB = '1') then
+				LED_REG <= REG_VALUE_READ;
+				state <= '0';
+				REG_STRB <= '0';
+			end if;
+		end if;
+	end if;
+	end process;
+
+	LED <= LED_REG;
 
 end audiocard_arch;
