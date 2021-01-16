@@ -45,6 +45,7 @@ architecture audiocard_arch of audiocard is
 
 		ULPI_DATA_OUT: out std_logic_vector(7 downto 0);
 		ULPI_DATA_OUT_STRB: out std_logic;
+		ULPI_DATA_OUT_END: out std_logic;
 
 		ULPI_PID_IN: in std_logic_vector(5 downto 0);
 		ULPI_DATA_IN: in std_logic_vector(7 downto 0);
@@ -113,7 +114,7 @@ signal counter, counter_but_waited, counter_but_waited_but, counter_uart, ULPI_D
 signal REG_RW, REG_STRB, REG_DONE_STRB, RXCMD_STRB, ULPI_DATA_OUT_STRB, REG_FAIL_STRB: std_logic;
 signal divider : std_logic_vector(19 downto 0);
 signal dividerr : std_logic_vector(21 downto 0);
-signal ULPI_DATA_IN_STRB, ULPI_DATA_IN_STRB_STRB, ULPI_DATA_IN_END: std_logic;
+signal ULPI_DATA_IN_STRB, ULPI_DATA_IN_STRB_STRB, ULPI_DATA_IN_END, ULPI_DATA_OUT_END: std_logic;
 
 signal RST, UART_DIN_VLD, UART_DIN_RDY : std_logic;
 signal UART_DIN : std_logic_vector(7 downto 0);
@@ -146,6 +147,7 @@ begin
 
 		ULPI_DATA_OUT => ULPI_DATA_OUT,
 		ULPI_DATA_OUT_STRB => ULPI_DATA_OUT_STRB,
+		ULPI_DATA_OUT_END => ULPI_DATA_OUT_END,
 
 		ULPI_PID_IN => ULPI_PID_IN,
 		ULPI_DATA_IN => ULPI_DATA_IN,
@@ -204,6 +206,10 @@ begin
 			if (ULPI_DATA_OUT_STRB = '1') then
 				FIFO_STRB_IN <= '1';
 				FIFO_DATA_IN <= ULPI_DATA_OUT;
+				counter <= std_logic_vector(unsigned(counter) + 1);
+			elsif (ULPI_DATA_OUT_END = '1') then
+				FIFO_STRB_IN <= '1';
+				FIFO_DATA_IN <= (others => '1');
 				counter <= std_logic_vector(unsigned(counter) + 1);
 			else
 				FIFO_STRB_IN <= '0';

@@ -26,6 +26,7 @@ entity ULPI is
 
 		ULPI_DATA_OUT: out std_logic_vector(7 downto 0);
 		ULPI_DATA_OUT_STRB: out std_logic;
+		ULPI_DATA_OUT_END: out std_logic;
 
 		ULPI_PID_IN: in std_logic_vector(5 downto 0);
 		ULPI_DATA_IN: in std_logic_vector(7 downto 0);
@@ -45,7 +46,7 @@ signal USB_DATA_OUT: std_logic_vector(7 downto 0);
 
 type state_type is (IDLE, TXCMD_PID, TXCMD_DATA, REG_WRITE_ADDR,
 		    REG_WRITE_VALUE, REG_WRITE_STOP, REG_READ_ADDR,
-		    REG_READ_VALUE, REG_READ_RESULT, READDATA);
+		    REG_READ_VALUE, REG_READ_RESULT, READ_RXCMD, READ_USB);
 
 signal state: state_type;
 signal state_tmp: state_type;
@@ -100,11 +101,12 @@ begin
 		LED <= (others => '0');
 		ULPI_DATA_OUT <= (others => '0');
 		ULPI_DATA_OUT_STRB <= '0';
+		ULPI_DATA_OUT_END <= '0';
 
 		case state is
 		when IDLE =>
 			if (USB_DIR = '1') then
-				state_tmp <= READDATA;
+				state_tmp <= READ_RXCMD;
 			elsif (REG_STRB = '1') then
 				reg_addr_reg_temp <= REG_ADDR;
 				if (REG_RW = '0') then
@@ -118,7 +120,7 @@ begin
 		when REG_READ_ADDR =>
 			USB_DATA_OUT <= "11" & REG_ADDR_REG;
 			if (USB_DIR = '1') then
-				state_tmp <= READDATA;
+				state_tmp <= READ_RXCMD;
 				REG_FAIL_STRB <= '1';
 			elsif (USB_NXT = '1') then
 				state_tmp <= REG_READ_VALUE;
@@ -133,7 +135,7 @@ begin
 			REG_VALUE_READ <= USB_DATA_IN;
 			REG_DONE_STRB <= '1';
 			if (USB_DIR = '1') then
-				state_tmp <= READDATA;
+				state_tmp <= READ_RXCMD;
 			else
 				state_tmp <= IDLE;
 			end if;
@@ -141,7 +143,7 @@ begin
 		when REG_WRITE_ADDR =>
 			USB_DATA_OUT <= "10" & REG_ADDR_REG;
 			if (USB_DIR = '1') then
-				state_tmp <= READDATA;
+				state_tmp <= READ_RXCMD;
 				REG_FAIL_STRB <= '1';
 			elsif (USB_NXT = '1') then
 				state_tmp <= REG_WRITE_VALUE;
@@ -151,7 +153,7 @@ begin
 			USB_DATA_OUT <= REG_VALUE_WRITE_REG;
 
 			if (USB_DIR = '1') then
-				state_tmp <= READDATA;
+				state_tmp <= READ_RXCMD;
 				REG_FAIL_STRB <= '1';
 			elsif (USB_NXT = '1') then
 				state_tmp <= REG_WRITE_STOP;
@@ -163,20 +165,37 @@ begin
 			REG_DONE_STRB <= '1';
 
 			if (USB_DIR = '1') then
-				state_tmp <= READDATA;
+				state_tmp <= READ_RXCMD;
 			else
 				state_tmp <= IDLE;
 			end if;
 			LED <= "11111001";
-		when READDATA =>
+		when READ_RXCMD =>
 			if (USB_DIR = '1' and USB_NXT = '0') then
 				RXCMD <= USB_DATA_IN;
 				RXCMD_STRB <= '1';
 			elsif (USB_DIR = '1' and USB_NXT = '1') then
 				ULPI_DATA_OUT <= USB_DATA_IN;
 				ULPI_DATA_OUT_STRB <= '1';
+				state_tmp <= READ_USB;
 			elsif (USB_DIR = '0') then
 				state_tmp <= IDLE;
+			end if;
+			LED <= "11111010";
+		when READ_USB =>
+			if (USB_DIR = '1' and USB_NXT = '0') then
+				RXCMD <= USB_DATA_IN;
+				RXCMD_STRB <= '1';
+				if (USB_DATA_IN(5 downto 4) = "00") then
+					ULPI_DATA_OUT_END <= '1';
+					state_tmp <= READ_RXCMD;
+				end if;
+			elsif (USB_DIR = '1' and USB_NXT = '1') then
+				ULPI_DATA_OUT <= USB_DATA_IN;
+				ULPI_DATA_OUT_STRB <= '1';
+			elsif (USB_DIR = '0') then
+				state_tmp <= IDLE;
+				ULPI_DATA_OUT_END <= '1';
 			end if;
 			LED <= "01010101";
 		when others =>
