@@ -86,7 +86,7 @@ begin
 		end if;
 	end process;
 
-	process (state, REG_ADDR_REG, REG_VALUE_WRITE_REG, USB_DATA_IN, USB_NXT, USB_DIR, REG_STRB, REG_RW, REG_VALUE_WRITE, REG_ADDR) begin
+	process (state, RESETn, REG_ADDR_REG, REG_VALUE_WRITE_REG, USB_DATA_IN, USB_NXT, USB_DIR, REG_STRB, REG_RW, REG_VALUE_WRITE, REG_ADDR) begin
 		USB_STP <= '0';
 		REG_DONE_STRB <= '0';
 		REG_VALUE_READ <= (others => '0');
